@@ -1,0 +1,131 @@
+<?php
+/**
+ * Implements hook_user_login().
+ *
+ * @param $account
+ */
+/*function first_module__form_alter(&$form, $form_state, $form_id){
+  if ($form_id == 'system_site_information_settings') {
+    $form['site_information']['site_api'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Site API Key'),
+      '#default_value' => variable_get('site_api', TRUE),
+    );
+  }
+}*/
+
+use Drupal\node\Entity\Node;
+use Drupal\Core\Form\FormStateInterface;
+
+use Symfony\Component\HttpFoundation\Request;
+
+function first_module_form_alter(&$form, $form_state, $form_id){
+  if ($form_id == 'system_site_information_settings') {
+   
+   $form['site_information']['siteapikey'] = [
+      '#type' => 'textfield',
+      '#title' => t('Site API Key'),
+	  '#default_value' =>\Drupal::state()->get('siteapikey'),
+      '#description' => t("Custom field to set the API Key"),
+	 ];
+	
+	$form['#submit'][] = 'first_module_handler';
+  }
+}
+
+/*function first_module_form_alter($form_id, &$form) {
+  if ($form_id == 'system_site_information_settings') {
+	
+    $form['first_module'] = array(
+     '#type' => 'checkbox',
+	 '#options' => t('Enable'),
+     '#title' => t('title),
+     '#description' => t('Description.'),
+    );
+  }*/
+  
+  function first_module_handler($form, &$form_state) {
+  \Drupal::config('system.site')->set('siteapikey', 'My fantastic site')->save();
+}
+  
+  /*function first_module_form_submit(&$form, FormStateInterface $form_state) {
+  $this->config('system.site')
+		  ->set('siteapikey', $form_state->getValue('siteapikey'))
+		  ->save();
+		
+}*/
+  
+  
+  function first_module_install() {
+  $database = \Drupal::database();
+  // Add a default entry.
+  $fields = array(
+    'value' => 'John',
+    
+  );
+  $database->insert('lotus')
+    ->fields($fields)
+    ->execute();
+  
+}
+  
+  
+  
+  function first_module_schema()
+{
+  $schema['custom_table'] = array
+  (
+    'description' => 'Holds custom form values for my node',
+    'fields' => array
+    (
+      'nid' => array
+      (
+        'description' => 'The unique Node ID from the {node} table',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'value' => array
+      (
+        'description' => 'The value of the field',
+        'type' => 'text',
+      ),
+    ),
+    'primary key' => 'nid',
+  );
+
+  return $schema;
+}
+
+function first_module_node_insert($node)
+{ 
+	  db_query(
+    'INSERT INTO {my_custom_table} (nid, value) VALUES (:nid, :value)',
+    array(
+      ':nid' => $node->nid,
+      ':value' => $node->siteapikey,
+    )
+  );
+}
+
+function first_module_node_load($nodes, $types) {
+  foreach ($nodes as $node) {
+    $nids[] = $node->nid;
+  }
+
+  $result = db_select('my_custom_table', 'e')
+    ->fields('e', array('nid', 'value'))
+    ->where('e.nid IN (:nids)', array(':nids' => $nids))
+    ->execute();
+
+  foreach ($result as $record) {
+    $nodes[$record->nid]->siteapikey = $record->siteapikey;
+    
+  }
+}
+
+
+function first_module_update_7001() {
+  db_create_table('first_module_derp', drupal_get_schema_unprocessed('first_module', 'first_module_derp'));
+  return 'Add the first_module_derp table for the first_module module.';
+}
